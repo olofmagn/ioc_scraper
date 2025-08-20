@@ -51,11 +51,11 @@ def save_iocs(iocs: Dict[str, Set[str]], output_dir: str, source_url: str) -> No
         **{h: iocs[h] for h in ["md5", "sha1", "sha256"] if h in iocs},
     }
 
-    for ioc_type, items in sorted(
-            combined.items(), key=lambda x: len(x[1]), reverse=True
-    ):
-        if not items:
-            continue
+    sorted_items = [
+        (ioc_type, items) for ioc_type, items in _sort_by_count(combined) if items
+    ]
+
+    for ioc_type, items in sorted_items:
         filepath = output_path / f"{domain}_{ioc_type}_{timestamp}.txt"
 
         try:
@@ -70,6 +70,21 @@ def save_iocs(iocs: Dict[str, Set[str]], output_dir: str, source_url: str) -> No
 
     _save_summary(combined, iocs, output_path, domain, timestamp, source_url, now)
 
+
+def _sort_by_count(items_dict: Dict, reverse: bool = True):
+    """
+    Sort dictionary items by count of values
+
+    Args:
+    - items_dict (Dict): Dictionary where values are collections
+    - reverse (bool): If True (default), sort in descending order (highest count first)
+
+    Returns:
+    - List[Tuple]: List of (key, value) tuples sorted by collection size
+
+    """
+    
+    return sorted(items_dict.items(), key=lambda x: len(x[1]), reverse=reverse)
 
 def sanitize_domain(url: str) -> str:
     """
@@ -115,6 +130,10 @@ def _save_summary(
     - now (datetime): current datetime object for ISO timestamp in summary
     """
 
+    sorted_combined = {k: sorted(v) for k, v in _sort_by_count(combined) if v}
+
+    sorted_ioc_counts = {k: len(v) for k, v in _sort_by_count(iocs)}
+
     summary_file = output_path / f"{domain}_summary_{timestamp}.json"
 
     try:
@@ -124,13 +143,14 @@ def _save_summary(
                     "source_url": source_url,
                     "timestamp": now.isoformat(),
                     "total_iocs": sum(len(v) for v in iocs.values()),
-                    "ioc_counts": {k: len(v) for k, v in iocs.items()},
-                    "combined_iocs": {k: sorted(v) for k, v in combined.items() if v},
+                    "ioc_counts": sorted_ioc_counts,
+                    "combined_iocs": sorted_combined,
                 },
                 f,
                 indent=2,
             )
     except Exception as e:
         get_logger().error(f"Failed to save summary to {summary_file}: {e}")
+        raise
 
     get_logger().info(f"Saved summary to {summary_file}")
