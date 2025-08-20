@@ -81,6 +81,8 @@ if lines_since_last_ioc >= MAX_LINES_WITHOUT_IOCS:
         break
 ```
 
+This tool is also frequently used with my other tool https://github.com/olofmagn/iocqueryx. I might build some automation between these tools in the future.
+
 ## Output
 - Individual `.txt` files for each IOC type (IPs, domains, URLs, emails, hashes).
 - A comprehensive JSON summary with extraction metadata.
