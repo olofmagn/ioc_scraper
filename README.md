@@ -92,47 +92,17 @@ Example run:
 ```json
 {
   "source_url": "https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/",
-  "timestamp": "2025-08-19T11:00:40.375202",
+  "timestamp": "2025-08-20T18:47:49.648998",
   "total_iocs": 43,
   "ioc_counts": {
-    "ips": 5,
-    "urls": 0,
-    "domains": 5,
-    "emails": 0,
+    "hashes": 19,
     "filenames": 14,
-    "hashes": 19
+    "ips": 5,
+    "domains": 5,
+    "urls": 0,
+    "emails": 0
   },
   "combined_iocs": {
-    "ip_addresses": [
-      "104.238.159.149",
-      "131.226.2.6",
-      "134.199.202.205",
-      "188.130.206.168",
-      "65.38.121.198"
-    ],
-    "domains": [
-      "asp.net",
-      "c34718cbb4c6.ngrok-free.app",
-      "connectednetworks.name",
-      "msupdate.updatemicfosoft.com",
-      "update.updatemicfosoft.com"
-    ],
-    "filenames": [
-      "\\template\\layouts\\debug_dev.js",
-      "app/file.ps1",
-      "cmd.exe",
-      "debug_dev.js",
-      "iis_server_dll.dll",
-      "iisreset.exe",
-      "services.exe",
-      "sharphostinfo.x64.exe",
-      "spinstall.aspx",
-      "spinstall0.aspx",
-      "spinstall1.aspx",
-      "spinstall2.aspx",
-      "w3wp.exe",
-      "xd.exe"
-    ],
     "hashes": [
       "1eb914c09c873f0a7bcf81475ab0f6bdfaccc6b63bf7e5f2dbf19295106af192",
       "24480dbe306597da1ba393b6e30d542673066f98826cc07ac4b9033137f37dbf",
@@ -153,6 +123,36 @@ Example run:
       "d6da885c90a5d1fb88d0a3f0b5d9817a82d5772d5510a0773c80ca581ce2486d",
       "f54ae00a9bae73da001c4d3d690d26ddf5e8e006b5562f936df472ec5e299441",
       "ffbc9dfc284b147e07a430fe9471e66c716a84a1f18976474a54bee82605fa9a"
+    ],
+    "filenames": [
+      "\\template\\layouts\\debug_dev.js",
+      "app/file.ps1",
+      "cmd.exe",
+      "debug_dev.js",
+      "iis_server_dll.dll",
+      "iisreset.exe",
+      "services.exe",
+      "sharphostinfo.x64.exe",
+      "spinstall.aspx",
+      "spinstall0.aspx",
+      "spinstall1.aspx",
+      "spinstall2.aspx",
+      "w3wp.exe",
+      "xd.exe"
+    ],
+    "ip_addresses": [
+      "104.238.159.149",
+      "131.226.2.6",
+      "134.199.202.205",
+      "188.130.206.168",
+      "65.38.121.198"
+    ],
+    "domains": [
+      "asp.net",
+      "c34718cbb4c6.ngrok-free.app",
+      "connectednetworks.name",
+      "msupdate.updatemicfosoft.com",
+      "update.updatemicfosoft.com"
     ]
   }
 }
