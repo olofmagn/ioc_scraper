@@ -108,7 +108,7 @@ class IOCExtractor:
             "domain": r"\b(?:\[\.\])?[a-zA-Z0-9-]+(?:(?:\.|\[\.\]|\(\.\))[a-zA-Z0-9-]+)+(?:\[\.\])?\b",
             "email": r"\b[a-zA-Z0-9._%+-]+(?:@|\[@\]|\(@\))[a-zA-Z0-9._-]+(?:\.|\[\.\]|\(\.\))[a-zA-Z]{2,}\b",
             "filename": rf"(?:[A-Za-z]:[\\/]|[\\/])?(?:[\w\s\-\.]+[\\/])*[\w\s\-\.]+\.({
-            '|'.join(MALICIOUS_EXTENSIONS)
+                '|'.join(MALICIOUS_EXTENSIONS)
             })$",
             "md5": r"\b[a-fA-F0-9]{32}\b",
             "sha1": r"\b[a-fA-F0-9]{40}\b",
@@ -177,19 +177,19 @@ class IOCExtractor:
                     if "/" in ioc:
                         network = ipaddress.IPv4Network(ioc, strict=False)
                         if (
-                                network.is_private
-                                or network.is_reserved
-                                or network.is_loopback
-                                or network.is_multicast
+                            network.is_private
+                            or network.is_reserved
+                            or network.is_loopback
+                            or network.is_multicast
                         ):
                             return False
                     else:
                         addr = ipaddress.IPv4Address(ioc)
                         if (
-                                addr.is_private
-                                or addr.is_reserved
-                                or addr.is_loopback
-                                or addr.is_multicast
+                            addr.is_private
+                            or addr.is_reserved
+                            or addr.is_loopback
+                            or addr.is_multicast
                         ):
                             return False
 
@@ -197,19 +197,19 @@ class IOCExtractor:
                     if "/" in ioc:
                         network = ipaddress.IPv6Network(ioc, strict=False)
                         if (
-                                network.is_private
-                                or network.is_reserved
-                                or network.is_loopback
-                                or network.is_multicast
+                            network.is_private
+                            or network.is_reserved
+                            or network.is_loopback
+                            or network.is_multicast
                         ):
                             return False
                     else:
                         addr = ipaddress.IPv6Address(ioc)
                         if (
-                                addr.is_private
-                                or addr.is_reserved
-                                or addr.is_loopback
-                                or addr.is_multicast
+                            addr.is_private
+                            or addr.is_reserved
+                            or addr.is_loopback
+                            or addr.is_multicast
                         ):
                             return False
 
@@ -264,9 +264,9 @@ class IOCExtractor:
 
         full_domain = domain.lower().strip()
         if (
-                full_domain.startswith(".")
-                or full_domain.endswith(".")
-                or ".." in full_domain
+            full_domain.startswith(".")
+            or full_domain.endswith(".")
+            or ".." in full_domain
         ):
             return False
 
@@ -274,8 +274,8 @@ class IOCExtractor:
             return False
 
         if any(
-                re.search(keyword, full_domain)
-                for keyword in self.false_positives["domain"]
+            re.search(keyword, full_domain)
+            for keyword in self.false_positives["domain"]
         ):
             return False
 
@@ -399,7 +399,7 @@ class IOCExtractor:
         return iocs
 
     def process_url(
-            self, url: str, output_dir: str = "iocs_output"
+        self, url: str, output_dir: str = "iocs_output"
     ) -> Dict[str, Set[str]]:
         """
         Complete IOC extraction workflow for a given URL
