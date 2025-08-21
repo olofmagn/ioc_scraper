@@ -3,6 +3,8 @@ import re
 import argparse
 import json
 import urllib.parse
+
+import requests
 import tldextract
 
 from pathlib import Path
@@ -106,17 +108,19 @@ class IOCExtractor:
             "domain": r"\b(?:\[\.\])?[a-zA-Z0-9-]+(?:(?:\.|\[\.\]|\(\.\))[a-zA-Z0-9-]+)+(?:\[\.\])?\b",
             "email": r"\b[a-zA-Z0-9._%+-]+(?:@|\[@\]|\(@\))[a-zA-Z0-9._-]+(?:\.|\[\.\]|\(\.\))[a-zA-Z]{2,}\b",
             "filename": rf"(?:[A-Za-z]:[\\/]|[\\/])?(?:[\w\s\-\.]+[\\/])*[\w\s\-\.]+\.({
-                '|'.join(MALICIOUS_EXTENSIONS)
+            '|'.join(MALICIOUS_EXTENSIONS)
             })$",
             "md5": r"\b[a-fA-F0-9]{32}\b",
             "sha1": r"\b[a-fA-F0-9]{40}\b",
             "sha256": r"\b[a-fA-F0-9]{64}\b",
         }
 
-        self.compiled_patterns = {
-            name: re.compile(pattern, re.IGNORECASE)
-            for name, pattern in self.patterns.items()
-        }
+        self.compiled_patterns = {}
+        for name, pattern in self.patterns.items():
+            try:
+                self.compiled_patterns[name] = re.compile(pattern, re.IGNORECASE)
+            except re.error as e:
+                self.logger.error(f"Invalid regex pattern for {name}: {e}")
 
     def _load_false_positives(self, filepath: str) -> None:
         """
@@ -151,7 +155,6 @@ class IOCExtractor:
 
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
             self.logger.error(f"Error loading false positives: {e}")
-            self.logger.error("Falling back to default configuration")
 
     def _validate_ip(self, ioc: str, base_type: str) -> bool:
         """
@@ -174,19 +177,19 @@ class IOCExtractor:
                     if "/" in ioc:
                         network = ipaddress.IPv4Network(ioc, strict=False)
                         if (
-                            network.is_private
-                            or network.is_reserved
-                            or network.is_loopback
-                            or network.is_multicast
+                                network.is_private
+                                or network.is_reserved
+                                or network.is_loopback
+                                or network.is_multicast
                         ):
                             return False
                     else:
                         addr = ipaddress.IPv4Address(ioc)
                         if (
-                            addr.is_private
-                            or addr.is_reserved
-                            or addr.is_loopback
-                            or addr.is_multicast
+                                addr.is_private
+                                or addr.is_reserved
+                                or addr.is_loopback
+                                or addr.is_multicast
                         ):
                             return False
 
@@ -194,19 +197,19 @@ class IOCExtractor:
                     if "/" in ioc:
                         network = ipaddress.IPv6Network(ioc, strict=False)
                         if (
-                            network.is_private
-                            or network.is_reserved
-                            or network.is_loopback
-                            or network.is_multicast
+                                network.is_private
+                                or network.is_reserved
+                                or network.is_loopback
+                                or network.is_multicast
                         ):
                             return False
                     else:
                         addr = ipaddress.IPv6Address(ioc)
                         if (
-                            addr.is_private
-                            or addr.is_reserved
-                            or addr.is_loopback
-                            or addr.is_multicast
+                                addr.is_private
+                                or addr.is_reserved
+                                or addr.is_loopback
+                                or addr.is_multicast
                         ):
                             return False
 
@@ -261,9 +264,9 @@ class IOCExtractor:
 
         full_domain = domain.lower().strip()
         if (
-            full_domain.startswith(".")
-            or full_domain.endswith(".")
-            or ".." in full_domain
+                full_domain.startswith(".")
+                or full_domain.endswith(".")
+                or ".." in full_domain
         ):
             return False
 
@@ -271,8 +274,8 @@ class IOCExtractor:
             return False
 
         if any(
-            re.search(keyword, full_domain)
-            for keyword in self.false_positives["domain"]
+                re.search(keyword, full_domain)
+                for keyword in self.false_positives["domain"]
         ):
             return False
 
@@ -396,7 +399,7 @@ class IOCExtractor:
         return iocs
 
     def process_url(
-        self, url: str, output_dir: str = "iocs_output"
+            self, url: str, output_dir: str = "iocs_output"
     ) -> Dict[str, Set[str]]:
         """
         Complete IOC extraction workflow for a given URL
@@ -409,8 +412,12 @@ class IOCExtractor:
         - Dict[str, Set[str]]: Dictionary mapping IOC types to sets of extracted IOCs
         """
 
-        self.logger.info(f"Fetching content from: {url}")
-        content = fetch_content(url)
+        try:
+            self.logger.info(f"Fetching content from: {url}")
+            content = fetch_content(url)
+        except requests.RequestException as e:
+            self.logger.error(f"Failed to fetch {url}: {e}")
+            return {}
 
         ioc_section = self._extract_ioc_section(content)
 
