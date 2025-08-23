@@ -151,6 +151,7 @@ def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
     """
 
     cache_file = Path("data/tld_cache.json")
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
 
     if cache_file.exists():
         try:
