@@ -26,7 +26,7 @@ IANA_URL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 
 def fetch_content(url: str) -> str:
     """
-    Fetch content from a URL with error handling, fragment stripping,
+    Fetch content from a URL
 
     Args:
     - url (str): URL to fetch content from
@@ -35,8 +35,8 @@ def fetch_content(url: str) -> str:
     - str: HTML content of the webpage
     """
 
-    if not url.startswith(("http", "https")):
-        raise Exception("URL must start with http or https")
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("URL must start with http or https")
 
     url, _ = urldefrag(url)
 
@@ -138,6 +138,81 @@ def _is_last_attempt(attempt: int, max_retries: int) -> bool:
 
     return attempt == max_retries - 1
 
+def _try_read_cache(cache_file: Path, cache_days: int) -> Set[str] | None:
+    """
+    Try to read TLD data from cache
+
+    Args:
+    - cache_file (Path): Path to the cache file
+    - cache_days (int): Number of days to cache
+
+    Returns:
+    - Set[str]: Set of TLD strings if cache is valid
+    """
+
+    if not cache_file.exists():
+        return None
+
+    try:
+        with open(cache_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            cache_time = datetime.fromisoformat(data["timestamp"])
+
+            if datetime.now() - cache_time < timedelta(days=cache_days):
+                get_logger().info(f"Using cached TLD data ({len(data['tlds'])} TLDs)")
+                return set(data["tlds"])
+            else:
+                get_logger().info("Cache expired, fetching fresh data...")
+                return None
+
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
+        get_logger().warning(f"Cache data corrupted: {e}")
+        return None
+
+    except (OSError, PermissionError, UnicodeDecodeError) as e:
+        get_logger().warning(f"Cache file read error: {e}")
+        return None
+
+
+def _write_to_cache(tlds: Set[str], cache_file: Path) -> None:
+    """
+    Write TLD data to cache file
+
+    Args:
+    - tlds (Set[str]): Set of TLD strings
+    - cache_file (Path): Path to the cache file
+    """
+
+    cache_data = {
+        "timestamp": datetime.now().isoformat(),
+        "tlds": sorted(list(tlds)),
+        "source": "IANA",
+        "count": len(tlds),
+    }
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(cache_data, f, indent=2)
+    except (OSError, PermissionError, json.JSONDecodeError) as e:
+        get_logger().warning(f"Cache file write error: {e}")
+
+
+def _fetch_fresh_tlds() -> Set[str]:
+    """
+    Fetch fresh TLD data from IANA.
+
+    Returns:
+    - Set[str]: Set of valid TLD strings
+    """
+
+    response = requests.get(IANA_URL, timeout=DEFAULT_TIMEOUT)
+    response.raise_for_status()
+
+    return {
+        line.strip().lower()
+        for line in response.text.strip().split("\n")
+        if line and not line.startswith("#")
+    }
+
 
 def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
     """
@@ -152,41 +227,16 @@ def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
 
     cache_file = Path("data/tld_cache.json")
     cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cached_tlds = _try_read_cache(cache_file, DEFAULT_CACHE_DAYS)
 
-    if cache_file.exists():
-        try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                cache_time = datetime.fromisoformat(data["timestamp"])
-
-                if datetime.now() - cache_time < timedelta(days=DEFAULT_CACHE_DAYS):
-                    get_logger().info(
-                        f"Using cached TLD data ({len(data['tlds'])} TLDs)"
-                    )
-                    return set(data["tlds"])
-        except (json.JSONDecodeError, KeyError, ValueError):
-            get_logger().error("Cache corrupted, fetching fresh TLD data...")
+    if cached_tlds:
+        return cached_tlds
 
     get_logger().info("Fetching fresh TLD data from IANA...")
     try:
-        url = IANA_URL
-        response = requests.get(url, timeout=DEFAULT_TIMEOUT)
-        response.raise_for_status()
+        tlds = _fetch_fresh_tlds()
 
-        tlds = {
-            line.strip().lower()
-            for line in response.text.strip().split("\n")
-            if line and not line.startswith("#")
-        }
-
-        cache_data = {
-            "timestamp": datetime.now().isoformat(),
-            "tlds": sorted(list(tlds)),
-            "source": "IANA",
-            "count": len(tlds),
-        }
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(cache_data, f, indent=2)
+        _write_to_cache(tlds, cache_file)
 
         get_logger().info(f"Fetched {len(tlds)} TLDs from IANA")
         return tlds
