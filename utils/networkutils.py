@@ -24,7 +24,7 @@ IANA_URL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 
 
 
-def fetch_content(url: str) -> str | None:
+def fetch_content(url: str) -> str:
     """
     Fetch content from a URL with error handling, fragment stripping,
 
@@ -90,24 +90,39 @@ def fetch_content(url: str) -> str | None:
 
     get_logger().error("All requests failed, trying Selenium...")
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
+        return _fetch_with_selenium(url)
+    except Exception as selenium_error:
+        get_logger().error(f"Selenium fallback failed: {selenium_error}")
+        raise RuntimeError(
+            f"All fetch methods failed for URL: {url}. "
+            f"HTTP attempts: {MAX_RETRIES}"
+        )
 
-        driver = webdriver.Chrome(options=chrome_options)
-        try:
-            driver.get(url)
-            time.sleep(3)
-            content = driver.page_source
-            get_logger().info(f"Selenium success! Content length: {len(content)}")
-            return content
-        finally:
-            driver.quit()
 
-    except Exception as e:
-        get_logger().error(f"Selenium failed: {e}")
-        raise Exception(f"All fetch methods failed for URL: {url}")
+def _fetch_with_selenium(url: str) -> str:
+    """
+    Fetch content using Selenium
+    Args:
+    - url (str): URL to fetch
+
+    Returns:
+    - str: HTML content of the webpage
+    """
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(options=chrome_options)
+    try:
+        driver.get(url)
+        time.sleep(3)
+        content = driver.page_source
+        get_logger().info(f"Selenium success! Content length: {len(content)}")
+        return content
+    finally:
+        driver.quit()
 
 def _is_last_attempt(attempt: int, max_retries: int) -> bool:
     """
