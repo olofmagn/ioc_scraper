@@ -19,7 +19,9 @@ Network utils
 DEFAULT_TIMEOUT = 30
 DEFAULT_CACHE_DAYS = 7
 MAX_RETRIES = 3
+RETRY_DELAY = 2
 IANA_URL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+
 
 
 def fetch_content(url: str) -> str | None:
@@ -51,7 +53,7 @@ def fetch_content(url: str) -> str | None:
             response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
 
             if response.status_code in (403, 429):
-                if attempt < MAX_RETRIES - 1:
+                if not _is_last_attempt(attempt, MAX_RETRIES):
                     wait = 2**attempt
                     get_logger().info(
                         f"Rate limited ({response.status_code}), waiting {wait}s..."
@@ -68,23 +70,23 @@ def fetch_content(url: str) -> str | None:
 
         except requests.Timeout:
             get_logger().warning(f"Timeout on attempt {attempt + 1}")
-            if attempt == MAX_RETRIES - 1:
+            if _is_last_attempt(attempt, MAX_RETRIES):
                 break
+            time.sleep(RETRY_DELAY)
 
         except requests.ConnectionError:
             get_logger().warning(f"Connection error on attempt {attempt + 1}")
-            if attempt == MAX_RETRIES - 1:
+            if _is_last_attempt(attempt, MAX_RETRIES):
                 break
+            time.sleep(RETRY_DELAY)
 
         except requests.HTTPError as e:
             get_logger().warning(
                 f"HTTP error {e.response.status_code} on attempt {attempt + 1}"
             )
-            if attempt == MAX_RETRIES - 1:
+            if _is_last_attempt(attempt, MAX_RETRIES):
                 break
-
-        if attempt < MAX_RETRIES - 1:
-            time.sleep(1)
+            time.sleep(RETRY_DELAY)
 
     get_logger().error("All requests failed, trying Selenium...")
     try:
@@ -106,6 +108,20 @@ def fetch_content(url: str) -> str | None:
     except Exception as e:
         get_logger().error(f"Selenium failed: {e}")
         raise Exception(f"All fetch methods failed for URL: {url}")
+
+def _is_last_attempt(attempt: int, max_retries: int) -> bool:
+    """
+    Return True if the loop should break on the last retry attempt
+
+    Args:
+    - attempt (int): Number of attempts to fetch
+    - max_retries (int): Number of attempts to fetch
+
+    Returns:
+    - True: if the loop should break
+    """
+
+    return attempt == max_retries - 1
 
 
 def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
