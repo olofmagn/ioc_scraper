@@ -22,7 +22,80 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 IANA_URL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 
+def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
+    """
+    Get valid tlds
 
+    Args:
+    - DEFAULT_CACHE_DAYS (int): number of days to look for valid tlds
+
+    Returns:
+    - Set[str]: set of valid lowercase tlds strings (e.g., {'com', 'org', 'net'})
+    """
+
+    cache_file = Path("data/tld_cache.json")
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cached_tlds = _try_read_cache(cache_file, DEFAULT_CACHE_DAYS)
+
+    if cached_tlds:
+        return cached_tlds
+
+    get_logger().info("Fetching fresh TLD data from IANA...")
+    try:
+        tlds = _fetch_fresh_tlds()
+
+        _write_to_cache(tlds, cache_file)
+
+        get_logger().info(f"Fetched {len(tlds)} TLDs from IANA")
+        return tlds
+
+    except requests.RequestException as e:
+        get_logger().error(f"Failed to fetch TLD data: {e}")
+
+        fallback_tlds = {
+            "com",
+            "org",
+            "net",
+            "edu",
+            "gov",
+            "mil",
+            "int",
+            "us",
+            "uk",
+            "ca",
+            "au",
+            "de",
+            "fr",
+            "jp",
+            "cn",
+            "in",
+            "br",
+            "ru",
+            "it",
+            "es",
+            "nl",
+            "ch",
+            "at",
+            "be",
+            "dk",
+            "fi",
+            "no",
+            "se",
+            "pl",
+            "by",
+            "md",
+            "ee",
+            "id",
+            "is",
+            "as",
+            "fm",
+            "am",
+            "to",
+            "ws",
+            "page",
+        }
+        get_logger().error(f"Using fallback TLD list ({len(fallback_tlds)} TLDs)")
+        return fallback_tlds
 
 def fetch_content(url: str) -> str:
     """
@@ -35,7 +108,7 @@ def fetch_content(url: str) -> str:
     - str: HTML content of the webpage
     """
 
-    if not url.startswith(("http://", "https://")):
+    if not url.startswith(("http", "https")):
         raise ValueError("URL must start with http or https")
 
     url, _ = urldefrag(url)
@@ -99,7 +172,7 @@ def fetch_content(url: str) -> str:
         )
 
 
-def _fetch_with_selenium(url: str) -> str:
+def _fetch_with_selenium(url: str) -> str | None:
     """
     Fetch content using Selenium
     Args:
@@ -212,79 +285,3 @@ def _fetch_fresh_tlds() -> Set[str]:
         for line in response.text.strip().split("\n")
         if line and not line.startswith("#")
     }
-
-
-def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
-    """
-    Get valid tlds
-
-    Args:
-    - DEFAULT_CACHE_DAYS (int): number of days to look for valid tlds
-
-    Returns:
-    - Set[str]: set of valid lowercase tlds strings (e.g., {'com', 'org', 'net'})
-    """
-
-    cache_file = Path("data/tld_cache.json")
-    cache_file.parent.mkdir(parents=True, exist_ok=True)
-    cached_tlds = _try_read_cache(cache_file, DEFAULT_CACHE_DAYS)
-
-    if cached_tlds:
-        return cached_tlds
-
-    get_logger().info("Fetching fresh TLD data from IANA...")
-    try:
-        tlds = _fetch_fresh_tlds()
-
-        _write_to_cache(tlds, cache_file)
-
-        get_logger().info(f"Fetched {len(tlds)} TLDs from IANA")
-        return tlds
-
-    except requests.RequestException as e:
-        get_logger().error(f"Failed to fetch TLD data: {e}")
-
-        fallback_tlds = {
-            "com",
-            "org",
-            "net",
-            "edu",
-            "gov",
-            "mil",
-            "int",
-            "us",
-            "uk",
-            "ca",
-            "au",
-            "de",
-            "fr",
-            "jp",
-            "cn",
-            "in",
-            "br",
-            "ru",
-            "it",
-            "es",
-            "nl",
-            "ch",
-            "at",
-            "be",
-            "dk",
-            "fi",
-            "no",
-            "se",
-            "pl",
-            "by",
-            "md",
-            "ee",
-            "id",
-            "is",
-            "as",
-            "fm",
-            "am",
-            "to",
-            "ws",
-            "page",
-        }
-        get_logger().error(f"Using fallback TLD list ({len(fallback_tlds)} TLDs)")
-        return fallback_tlds
