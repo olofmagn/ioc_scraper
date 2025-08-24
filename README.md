@@ -19,12 +19,12 @@ A simple Python script that automatically extracts Indicators of Compromise (IOC
 │   ├── __init__.py
 │   └── main.py
 └── utils
+    ├── configutils.py
     ├── datautils.py
     ├── fileutils.py
     ├── __init__.py
-    ├── logger.py
+    ├── loggerutils.py
     └── networkutils.py
-
 ```
 
 ## Requirements
