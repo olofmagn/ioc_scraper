@@ -59,6 +59,7 @@ def get_ioc_patterns() -> List[str]:
         r"Technical\s+Indicators?",
     ]
 
+
 def parse_html_to_lines(html_content: str) -> List[str]:
     """
     Parse html to lines
