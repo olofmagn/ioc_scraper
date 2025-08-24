@@ -8,13 +8,14 @@ import requests
 import tldextract
 
 from pathlib import Path
-from typing import Dict, Set, Optional
-from bs4 import BeautifulSoup
+from typing import Dict, Set, Optional, List, Tuple
 
-from utils.datautils import clean_ioc
+from utils.configutils import IOCConfig
+from utils.datautils import clean_ioc, get_ioc_patterns, parse_html_to_lines
 from utils.fileutils import save_iocs
 from utils.loggerutils import get_logger
-from utils.networkutils import get_valid_tlds, DEFAULT_CACHE_DAYS, fetch_content
+from utils.networkutils import get_valid_tlds, fetch_content
+
 
 """
 IOC Extractor - Indicator of Compromise Extraction Tool
@@ -22,12 +23,6 @@ IOC Extractor - Indicator of Compromise Extraction Tool
 Author: olofmagn
 Version: 1.0.0
 """
-
-# CONSTANTS
-MAX_PROCESSING_LINES = 500
-MAX_SECTION_LINES = 1000
-MAX_LINES_WITHOUT_IOCS = 100
-MAX_HEADER = 35
 
 
 class IOCExtractor:
@@ -42,6 +37,7 @@ class IOCExtractor:
         Args:
         - false_positives_file (Optional[str]): Path to JSON configuration file for false positive filtering
         """
+        self.config = IOCConfig()
 
         if false_positives_file and not Path(false_positives_file).exists():
             raise FileNotFoundError(f"File {false_positives_file} does not exist")
@@ -59,7 +55,7 @@ class IOCExtractor:
             self._load_false_positives(self.false_positives_file)
 
         self.logger.info("Initializing TLD validator...")
-        self.valid_tlds = get_valid_tlds(DEFAULT_CACHE_DAYS)
+        self.valid_tlds = get_valid_tlds(self.config.DEFAULT_CACHE_DAYS)
 
         # Patterns
         ipv4_octet = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
@@ -419,7 +415,7 @@ class IOCExtractor:
             self.logger.error(f"Failed to fetch {url}: {e}")
             return {}
 
-        ioc_section = self._extract_ioc_section(content)
+        ioc_section = self._extract_ioc_sections(content)
 
         if not ioc_section:
             self.logger.warning("No 'Indicators of Compromise' section found.")
@@ -438,9 +434,64 @@ class IOCExtractor:
 
         return grouped_iocs
 
-    def _extract_ioc_section(self, html_content: str) -> str:
+    def _extract_content_from_headers(
+        self, lines: List[str], accepted_headers: List[Tuple[int, str, str]]
+    ) -> str:
         """
-        Find ALL IOC section headers and extract content from each one
+        Extract content from headers
+
+        Args:
+        - lines (List[str]): List of text lines to extract content from
+        - accepted_headers (List[Tuple[int, str, str]]): List of valid headers with (line_index, pattern, text)
+
+        Returns:
+        - str: Content from the headers
+        """
+
+        boundaries = self._calculate_section_boundaries(accepted_headers, len(lines))
+        all_content = []
+
+        for i, (start_idx, end_idx) in enumerate(boundaries):
+            _, _, header_line = accepted_headers[i]
+            section_content = self._extract_section_content(
+                lines, start_idx, end_idx, header_line
+            )
+            all_content.extend(section_content)
+
+        self.logger.info(f"Extracted content from {len(accepted_headers)} IOC sections")
+
+        return "\n".join(all_content)
+
+    def _find_valid_ioc_headers(self, lines: List[str]) -> List[Tuple[int, str, str]]:
+        """
+        Find valid IOC headers
+
+        Args:
+        - lines (List[str]): IOC section lines to search through
+
+        Returns:
+        - List[Tuple[int, str, str]]:
+        List of tuples containing (line_index, matched_pattern, line_text) sorted by line index
+        """
+
+        pattern_matches = self._find_pattern_matches(lines)
+        accepted_headers = []
+
+        for line_idx, pattern, line_text in pattern_matches:
+            if self._validate_header_length(line_text):
+                accepted_headers.append((line_idx, pattern, line_text))
+
+        accepted_headers.sort(key=lambda x: x[0])
+
+        self.logger.info(f"Found {len(accepted_headers)} valid IOC section headers:")
+        for idx, pattern, line in accepted_headers:
+            self.logger.info(f"  Line {idx}: '{pattern}' -> '{line}'")
+
+        return accepted_headers
+
+    def _extract_ioc_sections(self, html_content: str) -> str:
+        """
+        Find all IOC section headers and extract content from each one
 
         Args:
         - html_content (str): HTML content to extract IOCs from
@@ -449,42 +500,9 @@ class IOCExtractor:
         - str: Content extracted from each IOC section
         """
 
-        patterns = [
-            r"Indicators?\s+of\s+Compromises?",
-            r"Network-Based\s+IOCs?",
-            r"Host-Based\s+IOCs?",
-            r"IOCs?\b",
-            r"Observables?",
-            r"Technical\s+Indicators?",
-        ]
-
         try:
-            soup = BeautifulSoup(html_content, "html.parser")
-            all_text = soup.get_text(separator="\n")
-            lines = all_text.split("\n")
-
-            accepted_headers = []
-
-            for i, line in enumerate(lines):
-                line = line.strip()
-                if not line:
-                    continue
-
-                for pattern in patterns:
-                    if re.search(pattern, line, re.IGNORECASE):
-                        self.logger.info(f"Found pattern '{pattern}' in line: '{line}'")
-                        self.logger.info(f"Line length: {len(line)} characters")
-
-                        if len(line) <= MAX_HEADER:
-                            self.logger.info(
-                                f"✓ Accepting as header (length: {len(line)})"
-                            )
-                            accepted_headers.append((i, pattern, line))
-                            break
-                        else:
-                            self.logger.info(
-                                f"✗ Rejecting as narrative text (length: {len(line)})"
-                            )
+            lines = parse_html_to_lines(html_content)
+            accepted_headers = self._find_valid_ioc_headers(lines)
 
             if not accepted_headers:
                 self.logger.warning(
@@ -492,38 +510,110 @@ class IOCExtractor:
                 )
                 return ""
 
-            accepted_headers.sort(key=lambda x: x[0])
-
-            self.logger.info(
-                f"Found {len(accepted_headers)} valid IOC section headers:"
-            )
-            for idx, pattern, line in accepted_headers:
-                self.logger.info(f"  Line {idx}: '{pattern}' -> '{line}'")
-
-            all_content = []
-
-            for i, (start_idx, pattern, header_line) in enumerate(accepted_headers):
-                self.logger.info(f"Extracting content from section: '{header_line}'")
-
-                if i + 1 < len(accepted_headers):
-                    end_idx = accepted_headers[i + 1][0]
-                else:
-                    end_idx = min(start_idx + MAX_SECTION_LINES, len(lines))
-
-                section_lines = lines[start_idx:end_idx]
-
-                all_content.append(f"=== {header_line} ===")
-                all_content.extend(section_lines)
-                all_content.append("")
-
-            self.logger.info(
-                f"Extracted content from {len(accepted_headers)} IOC sections"
-            )
-            return "\n".join(all_content)
+            return self._extract_content_from_headers(lines, accepted_headers)
 
         except Exception as e:
             self.logger.error(f"Failed: Exception during HTML extraction: {e}")
             return ""
+
+    def _find_pattern_matches(self, lines: List[str]) -> List[Tuple[int, str, str]]:
+        """
+        Find all lines that match IOC patterns.
+
+        Args:
+        - lines (List[str]): lines to search through
+
+        Returns:
+        - List of tuples: (line_index, matched_pattern, line_text)
+        """
+
+        patterns = get_ioc_patterns()
+        matches = []
+
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            for pattern in patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    self.logger.info(f"Found pattern '{pattern}' in line: '{line}'")
+                    self.logger.info(f"Line length: {len(line)} characters")
+                    matches.append((i, pattern, line))
+                    break
+
+        return matches
+
+    def _validate_header_length(self, line_text: str) -> bool:
+        """
+        Validate if a line is a valid header based on length
+
+        Args:
+        - line_text (str): The text line to validate
+
+        Returns:
+        - bool: True if line is short enough to be a header
+        """
+
+        if len(line_text) <= self.config.MAX_HEADER:
+            self.logger.info(f"✓ Accepting as header (length: {len(line_text)})")
+            return True
+        else:
+            self.logger.info(
+                f"✗ Rejecting as narrative text (length: {len(line_text)})"
+            )
+            return False
+
+    def _calculate_section_boundaries(
+        self, accepted_headers: List[Tuple[int, str, str]], total_lines: int
+    ) -> List[Tuple[int, int]]:
+        """
+        Calculate start and end boundaries for each section
+
+        Args:
+        - accepted_headers (List[tuple[int, str, str]]): List of valid headers with (line_index, pattern, text)
+        - total_lines (int): Total number of lines in the document
+
+        Returns:
+        - List[tuple[int, int]]: List of tuples containing (start_index, end_index) for each section
+        """
+
+        boundaries = []
+
+        for i, (start_idx, _, _) in enumerate(accepted_headers):
+            if i + 1 < len(accepted_headers):
+                end_idx = accepted_headers[i + 1][0]
+            else:
+                end_idx = min(start_idx + self.config.MAX_SECTION_LINES, total_lines)
+
+            boundaries.append((start_idx, end_idx))
+
+        return boundaries
+
+    def _extract_section_content(
+        self, lines: List[str], start_idx: int, end_idx: int, header_line: str
+    ) -> List[str]:
+        """
+        Extract content from a single IOC section.
+
+        Args:
+        - lines (List[str]): All text lines
+        - start_idx (int): Starting line index
+        - end_idx (int): Ending line index
+        - header_line (str): Header text for logging
+
+        Returns:
+        - List of lines for this section including header
+        """
+
+        self.logger.info(f"Extracting content from section: '{header_line}'")
+
+        section_lines = lines[start_idx:end_idx]
+        section_content = [f"=== {header_line} ==="]
+        section_content.extend(section_lines)
+        section_content.append("")  # Add spacing between sections
+
+        return section_content
 
     def _extract_iocs_iteratively(self, text: str) -> Dict[str, Set[str]]:
         """
@@ -533,29 +623,11 @@ class IOCExtractor:
         - text (str): Text to extract IOCs from
 
         Returns:
-        -Dict[str, Set[str]]: Dictionary mapping IOC types to sets of extracted IOCs
+        - Dict[str, Set[str]]: Dictionary mapping IOC types to sets of extracted IOCs
         """
 
-        all_iocs: Dict[str, Set[str]] = {
-            "ips": set(),
-            "urls": set(),
-            "domains": set(),
-            "emails": set(),
-            "filenames": set(),
-            "hashes": set(),
-        }
-
-        key_map = {
-            "ipv4": "ips",
-            "ipv6": "ips",
-            "url": "urls",
-            "domain": "domains",
-            "email": "emails",
-            "filename": "filenames",
-            "md5": "hashes",
-            "sha1": "hashes",
-            "sha256": "hashes",
-        }
+        all_iocs = self.config.get_empty_ioc_dict()
+        key_map = self.config.TYPE_MAPPING
 
         lines = text.split("\n")
 
@@ -590,7 +662,7 @@ class IOCExtractor:
             else:
                 lines_since_last_ioc += 1
 
-            if lines_since_last_ioc >= MAX_LINES_WITHOUT_IOCS:
+            if lines_since_last_ioc >= self.config.MAX_LINES_WITHOUT_IOCS:
                 if total_iocs_found > 0:
                     self.logger.info(
                         f"No new IOCs found in {lines_since_last_ioc} consecutive lines, stopping"
@@ -600,7 +672,7 @@ class IOCExtractor:
                     break
 
             # Safety check
-            if processed_lines > MAX_PROCESSING_LINES:
+            if processed_lines > self.config.MAX_PROCESSING_LINES:
                 self.logger.info(
                     f"Processed {processed_lines} lines, stopping for safety"
                 )
