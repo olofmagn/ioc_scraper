@@ -1,6 +1,8 @@
 import re
 from typing import List
 
+from bs4 import BeautifulSoup
+
 """
 Data utils
 """
@@ -56,3 +58,18 @@ def get_ioc_patterns() -> List[str]:
         r"Observables?",
         r"Technical\s+Indicators?",
     ]
+
+def parse_html_to_lines(html_content: str) -> List[str]:
+    """
+    Parse html to lines
+
+    Args:
+    - html_content (str): HTML content to extract IOCs from
+
+    Returns:
+    - List[str]: text lines extracted from each IOC section
+    """
+
+    soup = BeautifulSoup(html_content, "html.parser")
+    all_text = soup.get_text(separator="\n")
+    return all_text.split("\n")
