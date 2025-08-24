@@ -83,8 +83,9 @@ def _sort_by_count(items_dict: Dict, reverse: bool = True):
     - List[Tuple]: List of (key, value) tuples sorted by collection size
 
     """
-    
+
     return sorted(items_dict.items(), key=lambda x: len(x[1]), reverse=reverse)
+
 
 def sanitize_domain(url: str) -> str:
     """
@@ -102,20 +103,20 @@ def sanitize_domain(url: str) -> str:
         if not netloc:
             return "unknown_domain"
 
-        sanitized = re.sub(r'[<>:"|?*\s]', '_', netloc)
+        sanitized = re.sub(r'[<>:"|?*\s]', "_", netloc)
         return sanitized if sanitized else "unknown_domain"
     except Exception:
         return "unknown_domain"
 
 
 def _save_summary(
-        combined: Dict,
-        iocs: Dict,
-        output_path: Path,
-        domain: str,
-        timestamp: str,
-        source_url: str,
-        now: datetime,
+    combined: Dict,
+    iocs: Dict,
+    output_path: Path,
+    domain: str,
+    timestamp: str,
+    source_url: str,
+    now: datetime,
 ) -> None:
     """
     Save summary JSON file

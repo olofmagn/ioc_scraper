@@ -23,6 +23,7 @@ Author: olofmagn
 Version: 1.0.0
 """
 
+
 class IOCExtractor:
     """
     IOC (Indicator of Compromise) extraction engine
@@ -523,7 +524,6 @@ class IOCExtractor:
         soup = BeautifulSoup(html_content, "html.parser")
         all_text = soup.get_text(separator="\n")
         return all_text.split("\n")
-
 
     def _find_pattern_matches(self, lines: List[str]) -> List[Tuple[int, str, str]]:
         """

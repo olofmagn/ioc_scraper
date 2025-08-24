@@ -18,6 +18,7 @@ Network utils
 
 config = IOCConfig()
 
+
 def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
     """
     Get valid tlds
@@ -93,6 +94,7 @@ def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
         get_logger().error(f"Using fallback TLD list ({len(fallback_tlds)} TLDs)")
         return fallback_tlds
 
+
 def fetch_content(url: str) -> str:
     """
     Fetch content from a URL
@@ -116,7 +118,9 @@ def fetch_content(url: str) -> str:
         try:
             get_logger().info(f"Fetching (attempt {attempt + 1}): {url}")
 
-            response = requests.get(url, headers=headers, timeout=config.DEFAULT_TIMEOUT)
+            response = requests.get(
+                url, headers=headers, timeout=config.DEFAULT_TIMEOUT
+            )
 
             if response.status_code in (403, 429):
                 if not _is_last_attempt(attempt, config.MAX_RETRIES):
@@ -190,6 +194,7 @@ def _fetch_with_selenium(url: str) -> str | None:
     finally:
         driver.quit()
 
+
 def _is_last_attempt(attempt: int, max_retries: int) -> bool:
     """
     Return True if the loop should break on the last retry attempt
@@ -203,6 +208,7 @@ def _is_last_attempt(attempt: int, max_retries: int) -> bool:
     """
 
     return attempt == max_retries - 1
+
 
 def _try_read_cache(cache_file: Path, cache_days: int) -> Set[str] | None:
     """

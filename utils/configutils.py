@@ -19,7 +19,14 @@ class IOCConfig:
     RETRY_DELAY = 2
     IANA_URL = "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 
-    IOC_CATEGORIES: Tuple[str, ...] = ("ips", "urls", "domains", "emails", "filenames", "hashes")
+    IOC_CATEGORIES: Tuple[str, ...] = (
+        "ips",
+        "urls",
+        "domains",
+        "emails",
+        "filenames",
+        "hashes",
+    )
 
     TYPE_MAPPING = {
         "ipv4": "ips",
@@ -40,7 +47,6 @@ class IOCConfig:
             "Chrome/120.0.0.0 Safari/537.36"
         )
     }
-
 
     @classmethod
     def get_empty_ioc_dict(cls) -> Dict[str, Set[str]]:
