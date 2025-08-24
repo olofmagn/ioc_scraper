@@ -41,23 +41,6 @@ class IOCConfig:
         )
     }
 
-    @classmethod
-    def get_ioc_patterns(cls) -> List[str]:
-        """
-        Get list of IOC header patterns to search for
-
-        Returns:
-        - List[str]: List of regex patterns for IOC section headers
-        """
-
-        return [
-            r"Indicators?\s+of\s+Compromises?",
-            r"Network-Based\s+IOCs?",
-            r"Host-Based\s+IOCs?",
-            r"IOCs?\b",
-            r"Observables?",
-            r"Technical\s+Indicators?",
-        ]
 
     @classmethod
     def get_empty_ioc_dict(cls) -> Dict[str, Set[str]]:
