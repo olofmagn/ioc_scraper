@@ -10,7 +10,7 @@ from typing import Dict, Set, Optional, List, Tuple
 from bs4 import BeautifulSoup
 
 from utils.configutils import IOCConfig
-from utils.datautils import clean_ioc
+from utils.datautils import clean_ioc, get_ioc_patterns
 from utils.fileutils import save_iocs
 from utils.loggerutils import get_logger
 from utils.networkutils import get_valid_tlds, fetch_content
@@ -536,7 +536,7 @@ class IOCExtractor:
         - List of tuples: (line_index, matched_pattern, line_text)
         """
 
-        patterns = self.config.get_ioc_patterns()
+        patterns = get_ioc_patterns()
         matches = []
 
         for i, line in enumerate(lines):
