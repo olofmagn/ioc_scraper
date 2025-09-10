@@ -10,11 +10,11 @@ import tldextract
 from pathlib import Path
 from typing import Dict, Set, Optional, List, Tuple
 
-from utils.configutils import IOCConfig
-from utils.datautils import clean_ioc, get_ioc_patterns, parse_html_to_lines
-from utils.fileutils import save_iocs
-from utils.loggerutils import get_logger
-from utils.networkutils import get_valid_tlds, fetch_content
+from src.utils.configutils import IOCConfig
+from src.utils.datautils import clean_ioc, get_ioc_patterns, parse_html_to_lines
+from src.utils.fileutils import save_iocs
+from src.utils.loggerutils import get_logger
+from src.utils.networkutils import get_valid_tlds, fetch_content
 
 
 """

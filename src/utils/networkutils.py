@@ -10,7 +10,7 @@ from typing import Set
 from urllib.parse import urldefrag
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from utils.configutils import IOCConfig
+from src.utils.configutils import IOCConfig
 
 """
 Network utils
