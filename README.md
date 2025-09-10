@@ -15,16 +15,16 @@ A simple Python script that automatically extracts Indicators of Compromise (IOC
 │   └── tld_cache.json
 ├── README.md
 ├── requirements.txt
-├── src
-│   ├── __init__.py
-│   └── main.py
-└── utils
-    ├── configutils.py
-    ├── datautils.py
-    ├── fileutils.py
+└── src
     ├── __init__.py
-    ├── loggerutils.py
-    └── networkutils.py
+    ├── main.py
+    └── utils
+        ├── configutils.py
+        ├── datautils.py
+        ├── fileutils.py
+        ├── __init__.py
+        ├── loggerutils.py
+        └── networkutils.py
 ```
 
 ## Requirements

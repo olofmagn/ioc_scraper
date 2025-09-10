@@ -10,12 +10,11 @@ import tldextract
 from pathlib import Path
 from typing import Dict, Set, Optional, List, Tuple
 
-from src.utils.configutils import IOCConfig
+from src.utils import configutils
 from src.utils.datautils import clean_ioc, get_ioc_patterns, parse_html_to_lines
 from src.utils.fileutils import save_iocs
 from src.utils.loggerutils import get_logger
 from src.utils.networkutils import get_valid_tlds, fetch_content
-
 
 """
 IOC Extractor - Indicator of Compromise Extraction Tool
@@ -37,7 +36,7 @@ class IOCExtractor:
         Args:
         - false_positives_file (Optional[str]): Path to JSON configuration file for false positive filtering
         """
-        self.config = IOCConfig()
+
 
         if false_positives_file and not Path(false_positives_file).exists():
             raise FileNotFoundError(f"File {false_positives_file} does not exist")
@@ -55,7 +54,7 @@ class IOCExtractor:
             self._load_false_positives(self.false_positives_file)
 
         self.logger.info("Initializing TLD validator...")
-        self.valid_tlds = get_valid_tlds(self.config.DEFAULT_CACHE_DAYS)
+        self.valid_tlds = get_valid_tlds(configutils.DEFAULT_CACHE_DAYS)
 
         # Patterns
         ipv4_octet = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
@@ -555,7 +554,7 @@ class IOCExtractor:
         - bool: True if line is short enough to be a header
         """
 
-        if len(line_text) <= self.config.MAX_HEADER:
+        if len(line_text) <= configutils.MAX_HEADER:
             self.logger.info(f"✓ Accepting as header (length: {len(line_text)})")
             return True
         else:
@@ -584,7 +583,7 @@ class IOCExtractor:
             if i + 1 < len(accepted_headers):
                 end_idx = accepted_headers[i + 1][0]
             else:
-                end_idx = min(start_idx + self.config.MAX_SECTION_LINES, total_lines)
+                end_idx = min(start_idx + configutils.MAX_SECTION_LINES, total_lines)
 
             boundaries.append((start_idx, end_idx))
 
@@ -626,8 +625,8 @@ class IOCExtractor:
         - Dict[str, Set[str]]: Dictionary mapping IOC types to sets of extracted IOCs
         """
 
-        all_iocs = self.config.get_empty_ioc_dict()
-        key_map = self.config.TYPE_MAPPING
+        all_iocs = configutils.get_empty_ioc_dict()
+        key_map = configutils.TYPE_MAPPING
 
         lines = text.split("\n")
 
@@ -662,7 +661,7 @@ class IOCExtractor:
             else:
                 lines_since_last_ioc += 1
 
-            if lines_since_last_ioc >= self.config.MAX_LINES_WITHOUT_IOCS:
+            if lines_since_last_ioc >= configutils.MAX_LINES_WITHOUT_IOCS:
                 if total_iocs_found > 0:
                     self.logger.info(
                         f"No new IOCs found in {lines_since_last_ioc} consecutive lines, stopping"
@@ -672,7 +671,7 @@ class IOCExtractor:
                     break
 
             # Safety check
-            if processed_lines > self.config.MAX_PROCESSING_LINES:
+            if processed_lines > configutils.MAX_PROCESSING_LINES:
                 self.logger.info(
                     f"Processed {processed_lines} lines, stopping for safety"
                 )
@@ -701,20 +700,31 @@ For more information, visit: https://github.com/ioc-extractor
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("-u", "--url", help="URL to extract IOCs from", required=True)
+    parser.add_argument(
+        "-u",
+        "--url",
+        help="URL to extract IOCs from",
+        required=True
+    )
+
     parser.add_argument(
         "-o",
         "--output",
         default="iocs_output",
         help="Output directory (default: %(default)s)",
     )
+
     parser.add_argument(
         "-f",
         "--false-positives",
         help="Path to false positives JSON configuration file",
     )
+
     parser.add_argument(
-        "-v", "--version", action="version", version="IOC Extractor v1.0.0"
+        "-v",
+        "--version",
+        action="version",
+        version="IOC Extractor v1.0.0"
     )
 
     args = parser.parse_args()
@@ -732,7 +742,6 @@ For more information, visit: https://github.com/ioc-extractor
         get_logger().error(f"Error: {e}")
         get_logger().error("Please check the URL and your network connection.")
         exit(1)
-
 
 if __name__ == "__main__":
     main()

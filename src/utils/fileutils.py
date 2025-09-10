@@ -81,7 +81,6 @@ def _sort_by_count(items_dict: Dict, reverse: bool = True):
 
     Returns:
     - List[Tuple]: List of (key, value) tuples sorted by collection size
-
     """
 
     return sorted(items_dict.items(), key=lambda x: len(x[1]), reverse=reverse)
@@ -105,8 +104,8 @@ def sanitize_domain(url: str) -> str:
 
         sanitized = re.sub(r'[<>:"|?*\s]', "_", netloc)
         return sanitized if sanitized else "unknown_domain"
-    except Exception:
-        return "unknown_domain"
+    except Exception as e:
+        return f"unknown_domain {e}"
 
 
 def _save_summary(

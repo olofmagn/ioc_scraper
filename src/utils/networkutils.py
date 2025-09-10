@@ -1,22 +1,22 @@
 import json
-import requests
 import time
-
-from .loggerutils import get_logger
 
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Set
 from urllib.parse import urldefrag
+
+import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from src.utils.configutils import IOCConfig
+
+from src.utils import configutils
+
+from .loggerutils import get_logger
 
 """
 Network utils
 """
-
-config = IOCConfig()
 
 
 def get_valid_tlds(DEFAULT_CACHE_DAYS: int) -> Set[str]:
@@ -112,18 +112,18 @@ def fetch_content(url: str) -> str:
     url, _ = urldefrag(url)
 
     # Avoid request rejection
-    headers = config.headers
+    headers = configutils.HEADERS
 
-    for attempt in range(config.MAX_RETRIES):
+    for attempt in range(configutils.MAX_RETRIES):
         try:
             get_logger().info(f"Fetching (attempt {attempt + 1}): {url}")
 
             response = requests.get(
-                url, headers=headers, timeout=config.DEFAULT_TIMEOUT
+                url, headers=headers, timeout=configutils.DEFAULT_TIMEOUT
             )
 
             if response.status_code in (403, 429):
-                if not _is_last_attempt(attempt, config.MAX_RETRIES):
+                if not _is_last_attempt(attempt, configutils.MAX_RETRIES):
                     wait = 2**attempt
                     get_logger().info(
                         f"Rate _get_ioc_patterns limited ({response.status_code}), waiting {wait}s..."
@@ -140,23 +140,23 @@ def fetch_content(url: str) -> str:
 
         except requests.Timeout:
             get_logger().warning(f"Timeout on attempt {attempt + 1}")
-            if _is_last_attempt(attempt, config.MAX_RETRIES):
+            if _is_last_attempt(attempt, configutils.MAX_RETRIES):
                 break
-            time.sleep(config.RETRY_DELAY)
+            time.sleep(configutils.RETRY_DELAY)
 
         except requests.ConnectionError:
             get_logger().warning(f"Connection error on attempt {attempt + 1}")
-            if _is_last_attempt(attempt, config.MAX_RETRIES):
+            if _is_last_attempt(attempt, configutils.MAX_RETRIES):
                 break
-            time.sleep(config.RETRY_DELAY)
+            time.sleep(configutils.RETRY_DELAY)
 
         except requests.HTTPError as e:
             get_logger().warning(
                 f"HTTP error {e.response.status_code} on attempt {attempt + 1}"
             )
-            if _is_last_attempt(attempt, config.MAX_RETRIES):
+            if _is_last_attempt(attempt, configutils.MAX_RETRIES):
                 break
-            time.sleep(config.RETRY_DELAY)
+            time.sleep(configutils.RETRY_DELAY)
 
     get_logger().error("All requests failed, trying Selenium...")
     try:
@@ -165,7 +165,7 @@ def fetch_content(url: str) -> str:
         get_logger().error(f"Selenium fallback failed: {selenium_error}")
         raise RuntimeError(
             f"All fetch methods failed for URL: {url}. "
-            f"HTTP attempts: {config.MAX_RETRIES}"
+            f"HTTP attempts: {configutils.MAX_RETRIES}"
         )
 
 
@@ -276,7 +276,7 @@ def _fetch_fresh_tlds() -> Set[str]:
     - Set[str]: Set of valid TLD strings
     """
 
-    response = requests.get(config.IANA_URL, timeout=config.DEFAULT_TIMEOUT)
+    response = requests.get(configutils.IANA_URL, timeout=configutils.DEFAULT_TIMEOUT)
     response.raise_for_status()
 
     return {

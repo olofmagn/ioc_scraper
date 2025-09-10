@@ -1,6 +1,6 @@
 import re
-from typing import List
 
+from typing import List
 from bs4 import BeautifulSoup
 
 """
